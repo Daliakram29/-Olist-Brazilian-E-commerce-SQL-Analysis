@@ -1,5 +1,7 @@
 -- Total revenue 
-select round(sum(payment_value), 2) as total_revenue from payments;
+select round(sum(payment_value), 2) as total_revenue 
+from payments;
+
 
 -- Montly orders
 select date_format(order_purchase_timestamp, '%Y-%M') AS month,
@@ -12,24 +14,31 @@ order by month;
 select round(sum(if (order_delivered_customer_date > order_estimated_delivery_date, 1,0 )) / count(order_id) * 100, 2) 
 as late_delivery_rate 
 from orders
-WHERE order_delivered_customer_date IS NOT NULL
-  AND order_estimated_delivery_date IS NOT NULL;
+where  order_status = 'delivered'
+  and order_delivered_customer_date is not null
+  and order_estimated_delivery_date is not null;
   
--- top product categories
-select p.product_category_name,
-       count(o.order_id) as total_orders
+
+-- Top product categories based on the number of delivered orders
+select 
+    p.product_category_name,
+    count(distinct o.order_id) AS total_orders
 from order_items o
 join products p on o.product_id = p.product_id
+join orders ord on o.order_id = ord.order_id
+where ord.order_status = 'delivered'
 group by p.product_category_name
-order by total_orders desc
+order by total_orders DESC
 limit 10;
 
 -- top product category  using CTE+ window function
 with category_orders as (
      select p.product_category_name,
-            count(oi.order_id) as total_orders
+            count(distinct oi.order_id) as total_orders
      from order_items oi
      join products p on oi.product_id = p.product_id
+     join orders o on oi.order_id = o.order_id
+     where o.order_status = 'delivered'
      group by p.product_category_name)
 select 
     product_category_name,
@@ -40,12 +49,13 @@ order by rank_orders
 limit 10;
 
 -- top states by revenue
-select s.customer_state,
-       sum(p.payment_value) as total_payments
-from customers s
-join orders o on s.customer_id = o.customer_id
+select c.customer_state,
+       round(sum(p.payment_value),2) as total_payments
+from customers c
+join orders o on c.customer_id = o.customer_id
 join payments p on o.order_id = p.order_id
-group by s.customer_state
+where o.order_status = 'delivered'
+group by c.customer_state
 order by total_payments desc
 limit 10;
 
@@ -83,58 +93,65 @@ group by order_status
 order by total desc;
 
 -- Highest order by shipping cost
-SELECT o.order_id, SUM(oi.freight_value) AS total_freight
-FROM order_items oi
-JOIN orders o ON oi.order_id = o.order_id
-GROUP BY o.order_id
-ORDER BY total_freight DESC
-LIMIT 1;
+select o.order_id, SUM(oi.freight_value) AS total_freight
+from order_items oi
+join orders o on oi.order_id = o.order_id
+group by o.order_id
+order by total_freight desc
+limit 1;
 
 --  Percentage of each order status
-SELECT 
+select 
     order_status,
-    COUNT(order_id) AS total_orders,
-    ROUND(COUNT(order_id) / total_orders.total * 100, 2) AS percentage
-FROM orders
-JOIN (
-    SELECT COUNT(*) AS total
-    FROM orders
-) AS total_orders
-GROUP BY order_status, total_orders.total
-ORDER BY total_orders DESC;
+    count(order_id) as total_orders,
+    round(count(order_id) / total_orders.total * 100, 2) as percentage
+from orders
+join (
+    select count(*) as total
+    from orders
+) as total_orders
+group by order_status, total_orders.total
+order by total_orders desc;
 
 -- Rank cities by total orders
-SELECT 
+select 
     customer_city,
-    COUNT(order_id) AS total_orders,
-    RANK() OVER(ORDER BY COUNT(order_id) DESC) AS city_rank
-FROM orders o
-JOIN customers c ON o.customer_id = c.customer_id
-GROUP BY customer_city
-ORDER BY city_rank
-LIMIT 10; 
+    count(order_id) as total_orders,
+    rank() over(order by count(order_id) desc) as city_rank
+from orders o
+join customers c on o.customer_id = c.customer_id
+group by customer_city
+order by city_rank
+limit 10; 
 
 -- Monthly revenue trend with running total
-WITH monthly_revenue AS (
-    SELECT DATE_FORMAT(o.order_purchase_timestamp, '%Y-%m') AS month,
-           ROUND(SUM(p.payment_value), 2) AS revenue
-    FROM orders o
-    JOIN payments p ON o.order_id = p.order_id
-    GROUP BY month)
-SELECT month,
+with monthly_revenue AS (
+    select date_format(o.order_purchase_timestamp, '%Y-%m') as month,
+           round(sum(p.payment_value), 2) as revenue
+    from orders o
+    join payments p on o.order_id = p.order_id
+    group by month)
+select month,
        revenue,
-       SUM(revenue) OVER (ORDER BY month) AS running_total
-FROM monthly_revenue
-ORDER BY month;
+       sum(revenue) over (order by month) as running_total
+from monthly_revenue
+order by month;
 
 -- States with revenue above average
-SELECT customer_state, total_payments
-FROM (
-    SELECT c.customer_state,
-           ROUND(SUM(p.payment_value), 2) AS total_payments
-    FROM customers c
-    JOIN orders o ON c.customer_id = o.customer_id
-    JOIN payments p ON o.order_id = p.order_id
-    GROUP BY c.customer_state
-) AS state_revenue
-WHERE total_payments > (SELECT AVG(payment_value) FROM payments);
+with state_revenue as (
+    select
+        c.customer_state,
+        round(sum(p.payment_value), 2) as total_payments
+    from customers c
+    join orders o on c.customer_id = o.customer_id
+    join payments p on o.order_id = p.order_id
+    where o.order_status = 'delivered'
+    group by c.customer_state
+    order by total_payments desc
+)
+select *
+from state_revenue
+where total_payments > (
+    select avg(total_payments) 
+    from state_revenue
+);
