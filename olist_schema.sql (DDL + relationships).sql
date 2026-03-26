@@ -1,15 +1,11 @@
 USE brazilian_ecommerce;
 
-CREATE TABLE orders (
-    order_id VARCHAR(50) PRIMARY KEY,
-    customer_id VARCHAR(50),
-    order_status VARCHAR(20),
-    order_purchase_timestamp DATETIME,
-    order_approved_at DATETIME,
-    order_delivered_carrier_date DATETIME,
-    order_delivered_customer_date DATETIME,
-    order_estimated_delivery_date DATETIME,
-    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+CREATE TABLE customers (
+    customer_id VARCHAR(50) PRIMARY KEY,
+    customer_unique_id VARCHAR(50),
+    customer_zip_code_prefix VARCHAR(10),
+    customer_city VARCHAR(100),
+    customer_state VARCHAR(5)
 );
 
 CREATE TABLE products (
@@ -23,6 +19,20 @@ CREATE TABLE products (
     product_height_cm INT,
     product_width_cm INT
 );
+
+CREATE TABLE orders (
+    order_id VARCHAR(50) PRIMARY KEY,
+    customer_id VARCHAR(50),
+    order_status VARCHAR(20),
+    order_purchase_timestamp DATETIME,
+    order_approved_at DATETIME,
+    order_delivered_carrier_date DATETIME,
+    order_delivered_customer_date DATETIME,
+    order_estimated_delivery_date DATETIME,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+
 
 CREATE TABLE order_items (
     order_id VARCHAR(50),
