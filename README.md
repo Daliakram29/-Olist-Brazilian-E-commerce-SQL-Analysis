@@ -12,7 +12,7 @@ Covers data loading, schema design, and business insights through SQL queries.
  olist_schema.sql => DDL — table definitions and relationships 
  olist_etl.sql => Data loading and cleanup statements 
  olist_analysis_queries.sql=> Business analysis queries
- olist_sql_insights_report.pdf => 10 business questions with results and interpretation 
+ dashboard.pdf
 
 ## Key Analysis
 - Total revenue and monthly order trends
@@ -20,7 +20,9 @@ Covers data loading, schema design, and business insights through SQL queries.
 - Top product categories and states by revenue
 - Payment method breakdown
 - Advanced queries using CTEs, window functions, and subqueries
+- Dashboard: Page 1: Business Overview, Page 2: Operations & Geography
 
 ## Tools Used
 - MySQL
 - MySQL Workbench
+- PowerBi
